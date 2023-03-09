@@ -59,7 +59,7 @@ def readImage(sourceImage):
     height, width = img.shape[:2]   
     return img, height, width
     
-def imageProcess():
+def imageProcess(preImg):
     grayColor = cv2.cvtColor(preImg, cv2.COLOR_BGR2GRAY)
     blur = cv2.GaussianBlur(grayColor, (7, 7), cv2.BORDER_DEFAULT)
     canny = cv2.Canny(blur, 125, 175)
@@ -69,7 +69,7 @@ def imageProcess():
     grayCanny = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     return img, grayColor, grayCanny
     
-def findClock():
+def findClock(img, grayColor, height):
     circles = cv2.HoughCircles(grayColor, cv2.HOUGH_GRADIENT, 1, 20, np.array([]), 150, 50, int(height*0.35), int(height*0.48)) #find all the circles in the image
     a, b, c = circles.shape
     x,y,r = avg_circles(circles, b) #calculate the center and radius of the circle
@@ -77,12 +77,12 @@ def findClock():
     cv2.circle(img, (x, y), 2, (0, 255, 0), 2, cv2.LINE_AA)  # draw center of circle
     return x, y, r
 
-def lineDetect():
+def lineDetect(grayCanny):
     minLineLength = 80
     lines = cv2.HoughLinesP(grayCanny, rho=1, theta=np.pi / 180, threshold=100, minLineLength = minLineLength, maxLineGap = 10)
     return lines
 
-def findClockHands():
+def findClockHands(lines, xCircleCenter, yCircleCenter, radius):
     line = []
     diff1LowerBound = 0.01 #diff1LowerBound and diff1UpperBound determine how close the line should be from the center
     diff1UpperBound = 0.45
@@ -107,7 +107,7 @@ def findClockHands():
     line.sort(key = lambda x : x[-1])
     return line
 
-def mergeClockHand():
+def mergeClockHand(img, init_line_list):
     res = init_line_list[0] #res to contain the current line
     xAvg = (res[0] + res[2]) / 2 #Avg x coordinate of the line
     yAvg = (res[1] + res[3]) / 2 #Avg y coordinate of the line
@@ -137,7 +137,7 @@ def mergeClockHand():
 
     return final_line_list
 
-def calculateTime():
+def calculateTime(line, xCircleCenter, yCircleCenter):
     hour, minute, second = 0, 0, 0
     degH, degM, degS = 0, 0, 0
     line.sort(key = lambda x : x[-1])    
@@ -207,36 +207,40 @@ def calculateTime():
     
     return hour, minute, second, degH, degM, degS
 
-# Read image and get image's size
-preImg, height, width = readImage('clock2.jpg')
+def main():
+    # Read image and get image's size
+    preImg, height, width = readImage('clock2.jpg')
 
-# Pre-process image
-img, grayColor, grayCanny = imageProcess()
+    # Pre-process image
+    img, grayColor, grayCanny = imageProcess(preImg)
 
-# Detect circle
-xCircleCenter, yCircleCenter, radius = findClock()
+    # Detect circle
+    xCircleCenter, yCircleCenter, radius = findClock(img, grayColor, height)
 
-# Find all the lines in the image
-lines = lineDetect()
+    # Find all the lines in the image
+    lines = lineDetect(grayCanny)
 
-# Find all the clock hands
-init_line_list = []
-init_line_list = findClockHands()
+    # Find all the clock hands
+    init_line_list = []
+    init_line_list = findClockHands(lines, xCircleCenter, yCircleCenter, radius)
 
-# Find the 3 clock hands by merging all the lines in each clock hand
-line = mergeClockHand()
+    # Find the 3 clock hands by merging all the lines in each clock hand
+    line = mergeClockHand(img, init_line_list)
 
-# Calculate the time of the clock
-hour, minute, second, degH, degM, degS = calculateTime()
+    # Calculate the time of the clock
+    hour, minute, second, degH, degM, degS = calculateTime(line, xCircleCenter, yCircleCenter)
 
-# Print the result
-print("--------------")
-print(f"H:{int(degH)}, M:{int(degM)}, S:{int(degS)}")
-print("--------------")
-print(f"{hour}:{minute}:{second}")
-print("--------------")
+    # Print the result
+    print("--------------")
+    print(f"H:{int(degH)}, M:{int(degM)}, S:{int(degS)}")
+    print("--------------")
+    print(f"{hour}:{minute}:{second}")
+    print("--------------")
 
-# Draw the time on the clock image
-cv2.putText(img, hour + ":" + minute + ":" + second, (5, height - 50), cv2.FONT_HERSHEY_COMPLEX, 0.9, (0, 0, 255), 2, cv2.LINE_AA, False)
-cv2.imshow('img', img)
-cv2.waitKey(0)
+    # Draw the time on the clock image
+    cv2.putText(img, hour + ":" + minute + ":" + second, (5, height - 50), cv2.FONT_HERSHEY_COMPLEX, 0.9, (0, 0, 255), 2, cv2.LINE_AA, False)
+    cv2.imshow('img', img)
+    cv2.waitKey(0)
+
+if __name__=='__main__':
+    main()
