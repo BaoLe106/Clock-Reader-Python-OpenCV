@@ -230,7 +230,7 @@ def main():
     # Calculate the time of the clock
     hour, minute, second, degH, degM, degS = calculateTime(line, xCircleCenter, yCircleCenter)
 
-    # Print the result
+    # Print the result to the termial
     print("--------------")
     print(f"H:{int(degH)}, M:{int(degM)}, S:{int(degS)}")
     print("--------------")
