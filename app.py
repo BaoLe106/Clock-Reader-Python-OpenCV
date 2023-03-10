@@ -123,73 +123,88 @@ def mergeClockHand(img, init_line_list):
             ch = 1
         else:
             cv2.line(img, (res[0], res[1]), (res[2], res[3]), (0, 0, 255), 2)
-            dst = dist_2_pts(xAvg, yAvg, (res[0] + res[2]) / 2, (res[1] + res[3]) /2)
-            final_line_list.append([res[0], res[1], res[2], res[3], dst])
+            thickness = dist_2_pts(xAvg, yAvg, (res[0] + res[2]) / 2, (res[1] + res[3]) /2)
+            length = dist_2_pts(res[0], res[1], res[2], res[3])
+            final_line_list.append([res[0], res[1], res[2], res[3], thickness, length])
             xAvg = (init_line_list[i][0] + init_line_list[i][2]) / 2
             yAvg = (init_line_list[i][1] + init_line_list[i][3]) / 2
+            res = init_line_list[i]
             ch = 0
         v1 = v2
 
     if (ch == 1):
         cv2.line(img, (res[0], res[1]), (res[2], res[3]), (0, 0, 255), 2)
-        dst = dist_2_pts(xAvg, yAvg, (res[0] + res[2]) / 2, (res[1] + res[3]) /2)
-        final_line_list.append([res[0], res[1], res[2], res[3], dst])
+        thickness = dist_2_pts(xAvg, yAvg, (res[0] + res[2]) / 2, (res[1] + res[3]) /2)
+        length = dist_2_pts(res[0], res[1], res[2], res[3])
+        final_line_list.append([res[0], res[1], res[2], res[3], thickness, length])
 
     return final_line_list
 
-def calculateTime(line, xCircleCenter, yCircleCenter):
+def calculateMinuteAndSecond(line, xCircleCenter, yCircleCenter):
+    res = []
+    # xCircleCenter, yCircleCenter is center of circle
+    diff1 = dist_2_pts(xCircleCenter, yCircleCenter, line[0], line[1])  
+    diff2 = dist_2_pts(xCircleCenter, yCircleCenter, line[2], line[3])
+    if (diff1 < diff2):
+        res.append([line[0], line[1], line[2], line[3]])
+    else:
+        res.append([line[2], line[3], line[0], line[1]])
+    tmp = res[0]
+    v = calvec(tmp)
+    deg = calcos(v[0], v[1], 0, -100)
+
+    if (deg <= 2):
+        value = 0
+    elif ((deg >= 178) and (deg <= 180)):
+        value = 30
+    else:
+        if (tmp[2] < xCircleCenter):
+            value = 60 - int(deg / 6)
+        else:
+            value = int(deg / 6)
+    
+    return value, deg
+
+def detectTime(line, xCircleCenter, yCircleCenter):
     hour, minute, second = 0, 0, 0
     degH, degM, degS = 0, 0, 0
-    line.sort(key = lambda x : x[-1])    
+    line.sort(key = lambda x : x[-1])
 
-    for i in reversed(range(0, len(line))):
-        res = []
-        # xCircleCenter, yCircleCenter is center of circle
-        diff1 = dist_2_pts(xCircleCenter, yCircleCenter, line[i][0], line[i][1])  
-        diff2 = dist_2_pts(xCircleCenter, yCircleCenter, line[i][2], line[i][3])
-        if (diff1 < diff2):
-            res.append([line[i][0], line[i][1], line[i][2], line[i][3]])
+    # Calculate hour
+    res = []
+    # xCircleCenter, yCircleCenter is center of circle
+    diff1 = dist_2_pts(xCircleCenter, yCircleCenter, line[0][0], line[0][1])  
+    diff2 = dist_2_pts(xCircleCenter, yCircleCenter, line[0][2], line[0][3])
+    if (diff1 < diff2):
+        res.append([line[0][0], line[0][1], line[0][2], line[0][3]])
+    else:
+        res.append([line[0][2], line[0][3], line[0][0], line[0][1]])
+    tmp = res[0]
+    v = calvec(tmp)
+    deg = calcos(v[0], v[1], 0, -100)
+
+    if (deg <= 2):
+        hour = 0
+    elif ((deg >= 178) and (deg <= 180)):
+        hour = 30
+    else:
+        if (tmp[2] < xCircleCenter):
+            if ((deg % 30) / 30 >= 0.25):
+                hour = 12 - math.ceil(deg / 30)
+            else:     
+                hour = 12 - int(deg / 30)
         else:
-            res.append([line[i][2], line[i][3], line[i][0], line[i][1]])
-        tmp = res[0]
-        v = calvec(tmp)
-        deg = calcos(v[0], v[1], 0, -100)
-        if (i == 0):
-            if (deg <= 2):
-                hour = 0
-            elif ((deg >= 178) and (deg <= 180)):
-                hour = 30
-            else:
-                if (tmp[2] < xCircleCenter):
-                    if ((deg % 30) / 30 >= 0.5):
-                        hour = 12 - int(deg / 30) - 1
-                    else:     
-                        hour = 12 - int(deg / 30)
-                else:
-                    hour = int(deg / 30)  
-            degH = deg
-        elif (i == 1):
-            if (deg <= 2):
-                second = 0
-            elif ((deg >= 178) and (deg <= 180)):
-                second = 30
-            else:
-                if (tmp[2] < xCircleCenter):
-                    second = 60 - int(deg / 6)
-                else:
-                    second = int(deg / 6)
-            degS = second
-        elif (i == 2):
-            if (deg <= 2):
-                minute = 0
-            elif ((deg >= 178) and (deg <= 180)):
-                minute = 30
-            else:
-                if (tmp[2] < xCircleCenter):
-                    minute = 60 - int(deg / 6)
-                else:
-                    minute = int(deg / 6)
-            degM = deg
+            hour = int(deg / 30)  
+    degH = deg
+
+    # Calculate minute and second
+    if (line[1][4] < line[2][4]):
+        second, degS = calculateMinuteAndSecond(line[1], xCircleCenter, yCircleCenter)
+        minute, degM = calculateMinuteAndSecond(line[2], xCircleCenter, yCircleCenter)
+    else:
+        second, degS = calculateMinuteAndSecond(line[2], xCircleCenter, yCircleCenter)
+        minute, degM = calculateMinuteAndSecond(line[1], xCircleCenter, yCircleCenter)
+    
     if (hour >= 10):
         hour = str(hour)
     else:
@@ -228,9 +243,9 @@ def main():
     line = mergeClockHand(img, init_line_list)
 
     # Calculate the time of the clock
-    hour, minute, second, degH, degM, degS = calculateTime(line, xCircleCenter, yCircleCenter)
+    hour, minute, second, degH, degM, degS = detectTime(line, xCircleCenter, yCircleCenter)
 
-    # Print the result to the termial
+    # Print the result
     print("--------------")
     print(f"H:{int(degH)}, M:{int(degM)}, S:{int(degS)}")
     print("--------------")
