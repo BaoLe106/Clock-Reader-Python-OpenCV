@@ -224,7 +224,7 @@ def detectTime(line, xCircleCenter, yCircleCenter):
 
 def main():
     # Read image and get image's size
-    preImg, height, width = readImage('Clock-Reader-Python-OpenCV\clock.jpeg')
+    preImg, height, width = readImage('clock.jpeg')
 
     # Pre-process image
     img, grayColor, grayCanny = imageProcess(preImg)
